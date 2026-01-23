@@ -27,8 +27,9 @@ public:
     ScopeTimer(bool raii = false)
     {
 #if !SCOPE_TIMER_DISABLED
+#if OS_WINDOWS
         std::locale::global(std::locale("en_US.utf8")); // set locale (platform dependent)
-
+#endif
         if(raii)
         {
             start();
