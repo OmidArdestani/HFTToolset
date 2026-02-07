@@ -4,6 +4,15 @@
 #include <vector>
 #include <functional>
 
+#define MAKE_TOP_OF_BOOK_HANDLER(fn) \
+    std::bind(&fn, this, std::placeholders::_1)
+
+#define MAKE_TRADE_HANDLER(fn) \
+    std::bind(&fn, this, std::placeholders::_1)
+
+#define MAKE_DEPTH_SNAPSHOT_HANDLER(fn) \
+    std::bind(&fn, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3)
+
 namespace MarketMicroStructure {
 
 class MarketDataPublisher {
