@@ -1,7 +1,7 @@
 #include "matching_engine.h"
 #include <ScopeTimer.hpp>
 
-using namespace MarketMicroStructure;
+using namespace HFTToolset;
 
 MatchingEngine::MatchingEngine(MarketDataPublisher& md_pub)
     : md_pub_(md_pub)

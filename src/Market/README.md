@@ -184,7 +184,7 @@ Market/
 #include "types.h"
 #include <iostream>
 
-using namespace MarketMicroStructure;
+using namespace HFTToolset;
 
 int main() {
     // Create an order book for a symbol
@@ -250,7 +250,7 @@ int main() {
 #include "types.h"
 #include <iostream>
 
-using namespace MarketMicroStructure;
+using namespace HFTToolset;
 
 int main() {
     // Create market data publisher with callbacks
@@ -335,7 +335,7 @@ int main() {
 #include <iostream>
 #include <fstream>
 
-using namespace MarketMicroStructure;
+using namespace HFTToolset;
 
 // Log all trades to a file
 class TradeLogger {

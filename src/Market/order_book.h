@@ -8,7 +8,7 @@
 #include <list>
 #include <unordered_map>
 
-namespace MarketMicroStructure {
+namespace HFTToolset {
 
 class OrderBook {
 public:
@@ -59,4 +59,4 @@ private:
     std::unordered_map<OrderId, OrderLocation> order_index_;
 };
 
-} // namespace MarketMicroStructure
+} // namespace HFTToolset

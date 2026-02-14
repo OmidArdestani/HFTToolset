@@ -4,7 +4,7 @@
 #include <vector>
 #include <functional>
 
-namespace MarketMicroStructure {
+namespace HFTToolset {
 
 class MarketDataPublisher {
 public:
@@ -25,4 +25,4 @@ private:
     DepthSnapshotHandler depth_handler_;
 };
 
-} // namespace MarketMicroStructure
+} // namespace HFTToolset

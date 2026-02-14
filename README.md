@@ -123,7 +123,7 @@ Order book primitives:
 ```cpp
 #include "Market/order_book.h"
 
-using namespace MarketMicroStructure;
+using namespace HFTToolset;
 
 OrderBook book("FOO");
 book.addOrder(BookOrder{NewOrder{1, 42, "FOO", Side::Buy, OrderType::Limit, TimeInForce::Day, 100, 10}, 0});

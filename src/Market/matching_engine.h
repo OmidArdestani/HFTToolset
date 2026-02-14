@@ -6,7 +6,7 @@
 #include "market_data_publisher.h"
 #include <unordered_map>
 
-namespace MarketMicroStructure {
+namespace HFTToolset {
 
 class MatchingEngine {
 public:
@@ -28,4 +28,4 @@ private:
     std::unordered_map<OrderId, SymbolId> order_symbol_index_;
 };
 
-} // namespace MarketMicroStructure
+} // namespace HFTToolset

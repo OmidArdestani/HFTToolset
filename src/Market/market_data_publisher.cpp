@@ -1,7 +1,7 @@
 
 #include "market_data_publisher.h"
 
-using namespace MarketMicroStructure;
+using namespace HFTToolset;
 
 void MarketDataPublisher::onTopOfBook(TopOfBookHandler cb)
 {

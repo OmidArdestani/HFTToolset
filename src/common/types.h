@@ -9,7 +9,7 @@
 #include <algorithm>
 
 
-namespace MarketMicroStructure {
+namespace HFTToolset {
 
 using OrderId   = std::uint64_t;
 using TraderId  = std::uint64_t;
@@ -273,4 +273,4 @@ struct alignas(64) EngineEvent {
     }
 };
 
-} // namespace MarketMicroStructure
+} // namespace HFTToolset

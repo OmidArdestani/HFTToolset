@@ -1,7 +1,7 @@
 #include "order_book.h"
 #include <algorithm>
 
-namespace MarketMicroStructure {
+namespace HFTToolset {
 
 OrderBook::OrderBook(SymbolId symbol) : symbol_(std::move(symbol)) {}
 
@@ -175,4 +175,4 @@ std::vector<BookLevel> OrderBook::asks(std::size_t depth) const {
     return result;
 }
 
-} // namespace MarketMicroStructure
+} // namespace HFTToolset

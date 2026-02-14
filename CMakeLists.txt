@@ -12,16 +12,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(HFTToolset
     STATIC
     src/library_anchor.cpp
-    src/Market/order_book.cpp
-    src/Market/matching_engine.cpp
-    src/Market/market_data_publisher.cpp
+    src/Market/order_book.h src/Market/order_book.cpp
+    src/Market/matching_engine.h src/Market/matching_engine.cpp
+    src/Market/market_data_publisher.h src/Market/market_data_publisher.cpp
     src/benchmark_p99.hpp
     src/ScopeTimer.hpp
     src/HPRingBuffer.hpp
-    src/Market/order_book.h
-    src/Market/matching_engine.h
-    src/Market/market_data_publisher.h
-    src/Market/types.h
+    src/common/types.h
+    src/common/clock.h src/common/clock.cpp
 )
 
 
@@ -30,6 +28,7 @@ add_library(HFT::Toolset ALIAS HFTToolset)
 target_include_directories(HFTToolset
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/common>
         $<INSTALL_INTERFACE:include>
 )
 
