@@ -91,10 +91,14 @@ protected:
 
     // Queue/fill stats
     LatencyHistogram<1000, 1> queue_pos_hist_;  // queue position histogram
-    double fill_prob_sum_          = 0.0;
-    std::uint64_t fill_prob_count_ = 0;
-    double slippage_sum_           = 0.0;
-    std::uint64_t slippage_count_  = 0;
+
+    // Lock-free aggregates — doubles are stored as fixed-point int64_t
+    // using kFixedPointScale so that atomic fetch_add can be used.
+    static constexpr std::int64_t kFixedPointScale = 1'000'000'000LL;  // 1e9
+    std::atomic<std::int64_t>  fill_prob_sum_{ 0 };     // fixed-point sum
+    std::atomic<std::uint64_t> fill_prob_count_{ 0 };
+    std::atomic<std::int64_t>  slippage_sum_{ 0 };      // fixed-point sum
+    std::atomic<std::uint64_t> slippage_count_{ 0 };
 
     // Timer tracking
     struct TimerEntry

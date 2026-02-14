@@ -49,14 +49,16 @@ void Telemetry::record_queue_position( std::uint32_t pos )
 
 void Telemetry::record_fill_probability( double prob )
 {
-    fill_prob_sum_ += prob;
-    fill_prob_count_++;
+    fill_prob_sum_.fetch_add( static_cast<std::int64_t>( prob * kFixedPointScale ),
+                              std::memory_order_relaxed );
+    fill_prob_count_.fetch_add( 1, std::memory_order_relaxed );
 }
 
 void Telemetry::record_slippage( double ticks )
 {
-    slippage_sum_ += ticks;
-    slippage_count_++;
+    slippage_sum_.fetch_add( static_cast<std::int64_t>( ticks * kFixedPointScale ),
+                             std::memory_order_relaxed );
+    slippage_count_.fetch_add( 1, std::memory_order_relaxed );
 }
 
 // ── Timer Integration ──────────────────────────────────────────────────────
@@ -118,15 +120,24 @@ void Telemetry::print_dashboard() const
     std::cout << "╠══════════════════════════════════════════════════════════╣\n";
     std::cout << "║ FILL METRICS                                            ║\n";
     std::cout << "║   Volume:     " << std::setw( 14 ) << total_fill_qty_.load() << "                          ║\n";
-    if ( fill_prob_count_ > 0 )
+
+    // Lock-free snapshot of atomic aggregates
+    auto fp_count = fill_prob_count_.load( std::memory_order_relaxed );
+    auto fp_sum   = fill_prob_sum_.load( std::memory_order_relaxed );
+    auto sl_count = slippage_count_.load( std::memory_order_relaxed );
+    auto sl_sum   = slippage_sum_.load( std::memory_order_relaxed );
+
+    if ( fp_count > 0 )
     {
+        double avg_fp = static_cast<double>( fp_sum ) / ( static_cast<double>( fp_count ) * kFixedPointScale );
         std::cout << "║   Avg Fill P: " << std::setw( 14 ) << std::fixed << std::setprecision( 4 )
-                  << fill_prob_sum_ / static_cast<double>( fill_prob_count_ ) << "                          ║\n";
+                  << avg_fp << "                          ║\n";
     }
-    if ( slippage_count_ > 0 )
+    if ( sl_count > 0 )
     {
+        double avg_sl = static_cast<double>( sl_sum ) / ( static_cast<double>( sl_count ) * kFixedPointScale );
         std::cout << "║   Avg Slip:   " << std::setw( 14 ) << std::fixed << std::setprecision( 4 )
-                  << slippage_sum_ / static_cast<double>( slippage_count_ ) << " ticks                    ║\n";
+                  << avg_sl << " ticks                    ║\n";
     }
 
     std::cout << "╚══════════════════════════════════════════════════════════╝\n";
@@ -158,8 +169,8 @@ void Telemetry::reset()
     total_fill_qty_.store( 0 );
     total_fill_notional_.store( 0 );
 
-    fill_prob_sum_   = 0.0;
-    fill_prob_count_ = 0;
-    slippage_sum_    = 0.0;
-    slippage_count_  = 0;
+    fill_prob_sum_.store( 0, std::memory_order_relaxed );
+    fill_prob_count_.store( 0, std::memory_order_relaxed );
+    slippage_sum_.store( 0, std::memory_order_relaxed );
+    slippage_count_.store( 0, std::memory_order_relaxed );
 }

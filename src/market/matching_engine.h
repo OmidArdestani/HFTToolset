@@ -9,7 +9,10 @@
 #include <orderbook/l2_aggregator.h>
 #include <orderbook/l3_order_book.h>
 
+#include <functional>
+#include <memory>
 #include <unordered_map>
+#include <vector>
 
 #include "clock.h"
 #include "market_data_publisher.h"
@@ -44,9 +47,6 @@ public:
     void add_symbol( const Symbol& symbol );
     [[nodiscard]] bool has_symbol( const Symbol& symbol ) const;
     [[nodiscard]] std::vector<Symbol> symbols() const;
-
-    // Handle cancel request - O(1) lookup via order index
-    void handle_cancel( const CancelOrder& c );
 
     // ── Callbacks ──────────────────────────────────────────────────────
     void on_execution( ExecutionCallback cb ) { exec_cb_ = std::move( cb ); }
