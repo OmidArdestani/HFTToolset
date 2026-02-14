@@ -4,7 +4,7 @@
 
 #include "telemetry.h"
 
-namespace hft_sim {
+using namespace HFTToolset;
 
 Telemetry::Telemetry(const Clock& clock) : clock_(clock) {}
 
@@ -219,5 +219,3 @@ void Telemetry::reset() {
     slippage_sum_    = 0.0;
     slippage_count_  = 0;
 }
-
-} // namespace hft_sim

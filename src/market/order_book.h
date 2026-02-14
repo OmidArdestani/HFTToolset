@@ -12,9 +12,9 @@ namespace HFTToolset {
 
 class OrderBook {
 public:
-    explicit OrderBook(SymbolId symbol);
+    explicit OrderBook(Symbol symbol);
 
-    const SymbolId& symbol() const noexcept { return symbol_; }
+    const Symbol& symbol() const noexcept { return symbol_; }
 
     // Add a new resting order (no matching logic here)
     void addOrder(const BookOrder& ord);
@@ -35,7 +35,7 @@ public:
     std::vector<BookLevel> asks(std::size_t depth) const;
 
 private:
-    SymbolId symbol_;
+    Symbol symbol_;
 
     // Price -> queue of orders (time-priority per price)
     // For bids: highest price first; for asks: lowest price first.

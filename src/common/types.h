@@ -159,7 +159,7 @@ struct alignas(64) Trade {
     OrderId       incoming_id;
     TraderId      resting_trader = 0;
     TraderId      incoming_trader = 0;
-    SymbolId      symbol;
+    Symbol        symbol;
     Side          aggressor_side;
     Price         price;
     Quantity      qty;
@@ -173,7 +173,7 @@ struct BookLevel {
 };
 
 struct TopOfBook {
-    SymbolId symbol;
+    Symbol    symbol;
     BookLevel best_bid;
     BookLevel best_ask;
     Price     mid_price    = 0;
