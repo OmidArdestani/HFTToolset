@@ -11,7 +11,6 @@
 #include <iomanip>
 #include <iostream>
 #include <mutex>
-#include <nlohmann/json.hpp>
 #include <ScopeTimer.hpp>
 #include <string>
 #include <unordered_map>
@@ -54,15 +53,6 @@ public:
     void record_slippage( double ticks );
 
     // ── Export ──────────────────────────────────────────────────────────
-    /// Export all metrics as JSON.
-    [[nodiscard]] nlohmann::json to_json() const;
-
-    /// Write metrics to JSON file.
-    void export_json( const std::string& filepath ) const;
-
-    /// Write metrics to CSV file.
-    void export_csv( const std::string& filepath ) const;
-
     /// Print real-time console dashboard.
     void print_dashboard() const;
 
@@ -80,7 +70,7 @@ public:
     /// End a named timer and record the latency.
     void end_timer( const std::string& name );
 
-private:
+protected:
     const Clock& clock_;
 
     // Latency histograms
@@ -115,9 +105,6 @@ private:
     mutable std::mutex timer_mutex_;
 
     uint32_t export_interval_ms_ = 1000;
-
-    // Helper: format latency stats as JSON
-    static nlohmann::json stats_to_json( const LatencyStats& stats );
 };
 
 }  // namespace HFTToolset

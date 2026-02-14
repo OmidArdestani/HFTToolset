@@ -29,6 +29,8 @@ add_library(HFTToolset
     src/common/constants.h
     src/risk/risk_engine.cpp src/risk/risk_engine.h
     src/latency/latency_model.h src/latency/latency_model.cpp
+    src/metrics/telemetry.h src/metrics/telemetry.cpp
+    src/metrics/latency_histogram.h src/metrics/latency_histogram.cpp
 )
 
 
