@@ -1,4 +1,10 @@
 #pragma once
+// ============================================================================
+// HFTToolset — High-Performance Ring Buffer (HPRingBuffer)
+// Lock-free SPSC (Single-Producer Single-Consumer) ring buffer with
+// power-of-2 sizing for optimal modular arithmetic via bitmask.
+// Designed for zero-allocation, cache-friendly inter-thread messaging.
+// ============================================================================
 
 #include <array>
 #include <atomic>
@@ -82,4 +88,3 @@ private:
         return (idx + 1) & (Size - 1); // wrap-around using bitmask
     }
 };
-
