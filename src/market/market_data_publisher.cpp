@@ -1,3 +1,6 @@
+// ============================================================================
+// HFTToolset — Market Data Publisher Implementation
+// ============================================================================
 
 #include "market_data_publisher.h"
 
@@ -5,12 +8,12 @@ using namespace HFTToolset;
 
 void MarketDataPublisher::onTopOfBook(TopOfBookHandler cb)
 {
-    tob_handler_ = std::move(cb); 
+    tob_handler_ = std::move(cb);
 }
 
 void MarketDataPublisher::onTrade(TradeHandler cb)
 {
-    trade_handler_ = std::move(cb); 
+    trade_handler_ = std::move(cb);
 }
 
 void MarketDataPublisher::onDepthSnapshot(DepthSnapshotHandler cb)

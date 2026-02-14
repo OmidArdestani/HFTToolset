@@ -1,5 +1,5 @@
 // ============================================================================
-// HFT Exchange Simulator — L3 Order Book Implementation
+// HFTToolset — L3 Order Book Implementation
 // ============================================================================
 
 #include "l3_order_book.h"

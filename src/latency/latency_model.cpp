@@ -1,5 +1,5 @@
 // ============================================================================
-// HFT Exchange Simulator — Latency Model Implementation
+// HFTToolset — Latency Model Implementation
 // ============================================================================
 
 #include "latency_model.h"

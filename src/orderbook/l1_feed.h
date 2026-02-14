@@ -1,7 +1,8 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — L1 Feed
-// Best Bid/Ask, spread, mid-price, microprice.
+// HFTToolset — L1 Feed
+// Computes and publishes top-of-book statistics: best bid/ask,
+// spread, mid-price, microprice, VWAP, and rolling spread.
 // ============================================================================
 
 #include "common/types.h"
@@ -50,4 +51,4 @@ private:
     static constexpr std::size_t MAX_SPREAD_HISTORY = 500;
 };
 
-} // namespace hft_sim
+} // namespace HFTToolset

@@ -1,8 +1,9 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — Telemetry & Metrics
-// Comprehensive metrics collection with JSON/CSV export and console dashboard.
-// Uses HFTToolset's ScopeTimer for precise timing.
+// HFTToolset — Telemetry & Metrics
+// Comprehensive metrics collection: latency histograms, atomic throughput
+// counters, fill/queue statistics, ScopeTimer integration, and a
+// real-time console dashboard.
 // ============================================================================
 
 #include <atomic>

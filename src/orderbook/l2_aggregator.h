@@ -1,7 +1,8 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — L2 Aggregator
-// Aggregates L3 book into price-level depth (Market-by-Price).
+// HFTToolset — L2 Aggregator
+// Aggregates L3 order book into price-level depth snapshots
+// (Market-by-Price) with configurable depth.
 // ============================================================================
 
 #include "common/types.h"
@@ -33,4 +34,4 @@ private:
     std::size_t depth_;
 };
 
-} // namespace hft_sim
+} // namespace HFTToolset

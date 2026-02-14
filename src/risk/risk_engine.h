@@ -1,7 +1,8 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — Risk Engine
-// Position limits, order rate limits, kill switch, self-trade prevention.
+// HFTToolset — Risk Engine
+// Pre-trade risk checks: position limits, order rate limits (sliding
+// window), per-trader & global kill switch, price/quantity validation.
 // ============================================================================
 
 #include <atomic>

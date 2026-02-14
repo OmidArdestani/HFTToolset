@@ -1,5 +1,5 @@
 // ============================================================================
-// HFT Exchange Simulator — Telemetry Implementation
+// HFTToolset — Telemetry Implementation
 // ============================================================================
 
 #include "telemetry.h"

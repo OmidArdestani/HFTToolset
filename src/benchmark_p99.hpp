@@ -1,4 +1,9 @@
 #pragma once
+// ============================================================================
+// HFTToolset — P99 / P99.9 Latency Benchmarking
+// Measures callable latency over many iterations and computes
+// p99 and p99.9 percentile timings in nanoseconds.
+// ============================================================================
 
 #include <algorithm>
 #include <cstddef>

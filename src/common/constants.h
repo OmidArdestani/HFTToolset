@@ -1,6 +1,8 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — Compile-Time Constants
+// HFTToolset — Compile-Time Constants
+// System-wide constants for buffer sizes, pool capacities, latency defaults,
+// risk parameters, simulation defaults, and CPU affinity configuration.
 // ============================================================================
 
 #include <cstddef>

@@ -1,5 +1,5 @@
 // ============================================================================
-// HFT Exchange Simulator — Trade Engine Implementation
+// HFTToolset — Trade Engine Implementation
 // ============================================================================
 
 #include "trade_engine.h"

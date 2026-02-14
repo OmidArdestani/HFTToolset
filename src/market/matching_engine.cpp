@@ -1,3 +1,7 @@
+// ============================================================================
+// HFTToolset — Matching Engine Implementation
+// ============================================================================
+
 #include "matching_engine.h"
 #include <ScopeTimer.hpp>
 

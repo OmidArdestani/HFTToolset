@@ -1,4 +1,10 @@
 #pragma once
+// ============================================================================
+// HFTToolset — Core Types & Data Structures
+// Fundamental type aliases, enumerations, and POD structures shared across
+// all HFTToolset modules: orders, trades, book levels, execution reports,
+// market data snapshots, and inter-thread event wrappers.
+// ============================================================================
 
 #include <cstdint>
 #include <cstring>

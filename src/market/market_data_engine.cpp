@@ -1,5 +1,5 @@
 // ============================================================================
-// HFT Exchange Simulator — Market Data Engine Implementation
+// HFTToolset — Market Data Engine Implementation
 // ============================================================================
 
 #include "market_data_engine.h"

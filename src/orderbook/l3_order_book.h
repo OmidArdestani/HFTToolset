@@ -1,8 +1,9 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — L3 Order Book
+// HFTToolset — L3 Order Book
 // Full order-level book with queue position tracking, iceberg support,
-// and adverse selection modeling. Wraps HFTToolset primitives.
+// FOK/IOC/GTC/Day time-in-force, and cancel-replace. Provides callbacks
+// for trade, top-of-book, and depth events.
 // ============================================================================
 
 #include "types.h"
@@ -140,4 +141,4 @@ private:
     DepthCallback     depth_cb_;
 };
 
-} // namespace hft_sim
+} // namespace HFTToolset

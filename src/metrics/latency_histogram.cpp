@@ -1,5 +1,5 @@
 // ============================================================================
-// HFT Exchange Simulator — Latency Histogram (compilation unit)
+// HFTToolset — Latency Histogram (explicit template instantiations)
 // ============================================================================
 
 #include "latency_histogram.h"

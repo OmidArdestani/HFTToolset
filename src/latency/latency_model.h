@@ -1,8 +1,9 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — Latency Model
+// HFTToolset — Latency Model
 // Gaussian + heavy-tail latency simulation with per-client profiles.
-// Models network, matching engine, and market data dissemination latency.
+// Models network inbound/outbound, matching engine processing, and
+// market data dissemination latency. Seeded for deterministic replay.
 // ============================================================================
 
 #include <cmath>

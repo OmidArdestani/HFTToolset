@@ -1,7 +1,8 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — Market Data Engine
+// HFTToolset — Market Data Engine
 // Manages market data dissemination (L1/L2/L3) with configurable throttling.
+// Uses HPRingBuffer for lock-free cross-thread message passing.
 // ============================================================================
 
 #include <functional>

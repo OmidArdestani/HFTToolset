@@ -1,7 +1,8 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — High-Performance Memory Pool
+// HFTToolset — High-Performance Memory Pool
 // Pre-allocated, zero-allocation-in-hot-path object pool.
+// Lock-free O(1) allocate / deallocate with fixed capacity.
 // ============================================================================
 
 #include <array>
@@ -12,7 +13,7 @@
 #include <new>
 #include <type_traits>
 
-namespace hft_sim {
+namespace HFTToolset {
 
 /// Lock-free object pool with fixed capacity.
 /// All memory is pre-allocated at construction time.
@@ -102,4 +103,4 @@ private:
     alignas(64) std::atomic<std::size_t>   allocated_{0};
 };
 
-} // namespace hft_sim
+} // namespace HFTToolset

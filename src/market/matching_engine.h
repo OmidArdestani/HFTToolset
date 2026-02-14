@@ -1,4 +1,9 @@
 #pragma once
+// ============================================================================
+// HFTToolset — Multi-Symbol Matching Engine
+// Coordinates per-symbol L3 order books, L1/L2 feeds, risk checks,
+// and publishes execution reports, trades, and market data updates.
+// ============================================================================
 
 #include <orderbook/l1_feed.h>
 #include <orderbook/l2_aggregator.h>

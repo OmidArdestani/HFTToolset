@@ -1,5 +1,5 @@
 // ============================================================================
-// HFT Exchange Simulator — L2 Aggregator Implementation
+// HFTToolset — L2 Aggregator Implementation
 // ============================================================================
 
 #include "l2_aggregator.h"
@@ -37,4 +37,3 @@ std::vector<BookLevel> L2Aggregator::bid_levels() const {
 std::vector<BookLevel> L2Aggregator::ask_levels() const {
     return book_.ask_depth(depth_);
 }
-

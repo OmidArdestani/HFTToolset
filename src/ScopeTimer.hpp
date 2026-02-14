@@ -1,4 +1,9 @@
 #pragma once
+// ============================================================================
+// HFTToolset — RAII Scope Timer & Thread-Local Timer Management
+// Lightweight, compile-time-disableable timers for micro-benchmarking
+// hot-path code. Uses C++23 std::print for formatted output.
+// ============================================================================
 
 #include <chrono>
 #include <print>    // C++23: std::print / std::println

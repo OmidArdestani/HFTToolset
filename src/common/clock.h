@@ -1,7 +1,8 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — High-Resolution Clock
-// Nanosecond-resolution clock for deterministic time management.
+// HFTToolset — High-Resolution Clock
+// Nanosecond-resolution clock supporting both real wall-clock time
+// and deterministic simulated time for replay scenarios.
 // ============================================================================
 
 #include "types.h"
@@ -44,4 +45,4 @@ private:
     alignas(64) std::atomic<Timestamp> simulated_time_{0};
 };
 
-} // namespace hft_sim
+} // namespace HFTToolset

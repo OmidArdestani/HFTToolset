@@ -1,7 +1,8 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — Trade Engine
-// Processes trades, manages positions, and generates execution reports.
+// HFTToolset — Trade Engine
+// Processes trades, manages per-trader per-symbol positions,
+// computes realized/unrealized PnL, and mark-to-market.
 // ============================================================================
 
 #include "common/types.h"

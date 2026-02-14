@@ -1,8 +1,8 @@
 #pragma once
 // ============================================================================
-// HFT Exchange Simulator — Latency Histogram
-// Fixed-bucket histogram for p50/p99/p999 latency tracking.
-// Uses HFTToolset's benchmark_p99 pattern adapted for runtime use.
+// HFTToolset — Latency Histogram
+// Fixed-bucket histogram for O(1) recording and percentile computation
+// (p50/p90/p95/p99/p999). No heap allocation on the recording path.
 // ============================================================================
 
 #include <algorithm>

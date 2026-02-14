@@ -1,42 +1,101 @@
 # Market Microstructure Components
 
-High-performance C++ implementation of core market microstructure components including order book, matching engine, and market data publisher. These components provide the foundation for building limit order book simulations and trading systems.
+High-performance C++ implementation of core market microstructure components including a multi-symbol matching engine, trade engine with position tracking, market data aggregation, and order book management. These components provide the foundation for building limit order book simulations and trading systems.
 
 ## Overview
 
-This directory contains the market microstructure implementation for HFTToolset. The components implement price-time priority matching with support for multiple order types and time-in-force options. The design prioritizes performance with O(1) order cancellations and efficient order matching.
+This directory contains the market engine layer for HFTToolset. The matching engine coordinates per-symbol L3 order books (from `../orderbook/`), integrates with the risk engine (from `../risk/`), and publishes execution reports, trades, and market data updates. The design prioritizes performance with O(1) order cancellations, efficient matching, and lock-free market data dissemination.
 
 ## Components
 
-This directory contains four main components:
+This directory contains six main components:
 
-### 1. types.h - Core Data Structures
+### 1. matching_engine.h/.cpp — Multi-Symbol Matching Engine
 
-Defines the fundamental types and data structures used throughout the market microstructure system.
+The `MatchingEngine` class is the central coordinator for all order processing. It manages per-symbol state (L3 book + L2 aggregator + L1 feed), routes orders, performs risk checks, and publishes events.
 
-**Type Aliases:**
-- `OrderId` - uint64_t identifier for orders
-- `TraderId` - uint64_t identifier for traders
-- `SymbolId` - std::string identifier for trading symbols
-- `Price` - int64_t representing price in ticks
-- `Quantity` - int64_t representing quantity in units
+**Key Features:**
+- Manages multiple symbols, each with an `L3OrderBook`, `L2Aggregator`, and `L1Feed`
+- O(1) symbol lookup via `unordered_map`
+- O(1) order-to-symbol mapping for cancel routing
+- Integrated risk checks via `RiskEngine` (optional)
+- Callback-based execution reports, trades, L1, and L2 updates
+- Supports NewOrder, Cancel, and Cancel-Replace workflows
+- Tracks order/trade/cancel/reject counters
 
-**Enumerations:**
-- `Side`: Buy, Sell
-- `OrderType`: Limit, Market
-- `TimeInForce`: Day, IOC (Immediate-or-Cancel), FOK (Fill-or-Kill)
+**Public Interface:**
 
-**Structures:**
-- `NewOrder` - Incoming order request with all order parameters
-- `CancelOrder` - Cancel request containing order ID
-- `Trade` - Execution result with resting/incoming order IDs, symbol, side, price, quantity, and timestamp
-- `BookLevel` - Price-quantity pair representing a level in the order book
-- `TopOfBook` - Best bid and ask levels for a symbol
-- `BookOrder` - Internal order representation with timestamp for time priority
+```cpp
+class MatchingEngine {
+public:
+    explicit MatchingEngine(Clock& clock);
 
-### 2. order_book.h/cpp - Limit Order Book
+    void add_symbol(SymbolId symbol);
+    void add_symbol(const Symbol& symbol);
+    bool has_symbol(const Symbol& symbol) const;
+    std::vector<Symbol> symbols() const;
 
-The `OrderBook` class implements a full limit order book with price-time priority matching.
+    // Order processing
+    ExecutionReport process_new_order(const Order& order);
+    ExecutionReport process_cancel(const CancelRequest& cancel);
+    ExecutionReport process_replace(const ReplaceRequest& replace);
+    void handle_cancel(const CancelOrder& c);
+
+    // Callbacks
+    void on_execution(ExecutionCallback cb);
+    void on_trade(TradeCallback cb);
+    void on_l1_update(L1Callback cb);
+    void on_l2_update(L2Callback cb);
+
+    // Market data queries
+    TopOfBook get_top_of_book(const Symbol& symbol) const;
+    DepthSnapshot get_depth(const Symbol& symbol) const;
+    const L3OrderBook* get_book(const Symbol& symbol) const;
+
+    // Risk engine binding
+    void set_risk_engine(RiskEngine* risk);
+
+    // Statistics
+    uint64_t total_orders_processed() const;
+    uint64_t total_trades() const;
+    uint64_t total_cancels() const;
+    uint64_t total_rejects() const;
+};
+```
+
+### 2. trade_engine.h/.cpp — Trade & Position Engine
+
+The `TradeEngine` processes trades, tracks per-trader per-symbol positions, computes realized/unrealized PnL, and supports mark-to-market.
+
+**Key Features:**
+- Per-trader per-symbol position tracking (`TraderSymbolKey` composite key)
+- Realized PnL computation on position reduction
+- Unrealized PnL via mark-to-market
+- Trade volume and notional accumulation
+- Callback support for trades and position updates
+
+**Public Interface:**
+
+```cpp
+class TradeEngine {
+public:
+    void process_trade(const Trade& trade);
+    const Position* get_position(TraderId trader_id, const Symbol& symbol) const;
+    std::vector<Position> get_positions(TraderId trader_id) const;
+    void mark_to_market(const Symbol& symbol, Price current_price);
+
+    void on_trade(TradeCallback cb);
+    void on_position(PositionCallback cb);
+
+    uint64_t total_trades() const;
+    Quantity total_volume() const;
+    double total_notional() const;
+};
+```
+
+### 3. order_book.h/.cpp — Simple Limit Order Book
+
+A lightweight `OrderBook` with price-time priority matching. This is a simpler alternative to the full `L3OrderBook` (in `../orderbook/`) for basic simulations.
 
 **Key Features:**
 - Separate bid and ask price levels using `std::map` with custom comparators
@@ -50,349 +109,229 @@ The `OrderBook` class implements a full limit order book with price-time priorit
 ```cpp
 class OrderBook {
 public:
-    explicit OrderBook(SymbolId symbol);
-    
-    const SymbolId& symbol() const noexcept;
-    
-    // Add a resting limit order to the book
+    explicit OrderBook(Symbol symbol);
+    const Symbol& symbol() const noexcept;
+
     void addOrder(const BookOrder& ord);
-    
-    // Cancel an existing order - O(1) lookup
     bool cancelOrder(OrderId id);
-    
-    // Match incoming order against the book
-    // Returns trades and remaining quantity
     std::pair<std::vector<Trade>*, Quantity> matchIncoming(
-        const BookOrder& incoming, 
-        std::uint64_t ts_ns
-    );
-    
-    // Query best prices
+        const BookOrder& incoming, std::uint64_t ts_ns);
+
     std::optional<BookLevel> bestBid() const;
     std::optional<BookLevel> bestAsk() const;
-    
-    // Get market depth snapshot
     std::vector<BookLevel> bids(std::size_t depth) const;
     std::vector<BookLevel> asks(std::size_t depth) const;
 };
 ```
 
-**Implementation Details:**
-- Bids stored in descending price order (`std::greater<Price>`)
-- Asks stored in ascending price order (`std::less<Price>`)
-- Order index maps `OrderId` to `(Side, Price, Queue::iterator)` for O(1) removal
-- Each price level maintains a queue (`std::list`) for time priority
+### 4. market_data_engine.h/.cpp — Market Data Engine
 
-### 3. matching_engine.h/cpp - Multi-Symbol Matching Engine
-
-The `MatchingEngine` class coordinates multiple order books and processes orders across symbols.
+The `MarketDataEngine` aggregates market data from the matching engine and publishes it via HPRingBuffer for lock-free cross-thread dissemination. Supports configurable throttling.
 
 **Key Features:**
-- Manages multiple order books (one per symbol)
-- O(1) symbol lookup via `unordered_map`
-- O(1) order-to-symbol mapping for cancellations
-- Integrates with `MarketDataPublisher` for market data callbacks
+- Lock-free HPRingBuffer (16K slots) for cross-thread MD messages
+- Per-symbol throttling with configurable interval
+- Supports L1 (TOB), L2 (depth snapshots), and trade events
+- Trades are never throttled
+- Multiple subscriber callbacks per event type
 
 **Public Interface:**
 
 ```cpp
-class MatchingEngine {
+class MarketDataEngine {
 public:
-    explicit MatchingEngine(MarketDataPublisher& md_pub);
-    
-    // Register a new trading symbol
-    void addSymbol(SymbolId symbol);
-    
-    // Process a new market or limit order
-    void handleNewOrder(const NewOrder& o, std::uint64_t ts_ns);
-    
-    // Cancel an existing order - O(1) lookup
-    void handleCancel(const CancelOrder& c);
+    explicit MarketDataEngine(Clock& clock);
+
+    void set_throttle_interval_ns(uint64_t ns);
+    void set_l2_depth(std::size_t depth);
+
+    void on_tob_update(const TopOfBook& tob);
+    void on_depth_update(const DepthSnapshot& depth);
+    void on_trade(const Trade& trade);
+    void process_pending();
+
+    void subscribe_l1(L1Handler handler);
+    void subscribe_l2(L2Handler handler);
+    void subscribe_trades(TradeHandler handler);
+
+    uint64_t messages_published() const;
+    uint64_t messages_throttled() const;
 };
 ```
 
-**Workflow:**
-1. New orders are routed to the appropriate symbol's order book
-2. Market orders immediately match against the book
-3. Limit orders either match partially/fully or rest on the book
-4. All trades are published via `MarketDataPublisher`
-5. Top-of-book updates are published after order processing
-6. Cancellations use global order index for O(1) symbol lookup
+### 5. market_data_publisher.h/.cpp — Callback-Based Market Data Publisher
 
-### 4. market_data_publisher.h/cpp - Market Data Distribution
-
-The `MarketDataPublisher` class provides an event-driven callback system for market data.
-
-**Key Features:**
-- Type-safe callback registration using `std::function`
-- Support for multiple market data event types
-- Decoupled from matching logic for clean architecture
+A lightweight, decoupled publisher that distributes market data via `std::function` callbacks. Used by the matching engine to push updates without tight coupling to subscribers.
 
 **Public Interface:**
 
 ```cpp
 class MarketDataPublisher {
 public:
-    using TopOfBookHandler = std::function<void(const TopOfBook&)>;
-    using TradeHandler = std::function<void(const Trade&)>;
-    using DepthSnapshotHandler = std::function<void(
-        const SymbolId&, 
-        const std::vector<BookLevel>& bids,
-        const std::vector<BookLevel>& asks
-    )>;
-    
-    // Register callbacks
     void onTopOfBook(TopOfBookHandler cb);
     void onTrade(TradeHandler cb);
     void onDepthSnapshot(DepthSnapshotHandler cb);
-    
-    // Publish market data (called by MatchingEngine)
+
     void publishTopOfBook(const TopOfBook& tob) const;
     void publishTrade(const Trade& t) const;
-    void publishDepth(
-        const SymbolId& sym,
-        const std::vector<BookLevel>& bids,
-        const std::vector<BookLevel>& asks
-    ) const;
+    void publishDepth(const SymbolId& sym,
+                      const std::vector<BookLevel>& bids,
+                      const std::vector<BookLevel>& asks) const;
 };
 ```
-
-**Event Types:**
-- **Trade**: Executed trades with full details (price, quantity, aggressor side, timestamp)
-- **Top-of-Book**: Best bid and ask updates after order book changes
-- **Depth Snapshot**: Multi-level order book depth for market data feeds
 
 ## Files
 
 ```
-Market/
-├── README.md                      # This file
-├── types.h                        # Core data structures and enums
-├── order_book.h                   # OrderBook class interface
-├── order_book.cpp                 # OrderBook implementation
-├── matching_engine.h              # MatchingEngine class interface
-├── matching_engine.cpp            # MatchingEngine implementation
-├── market_data_publisher.h        # MarketDataPublisher interface
-└── market_data_publisher.cpp      # MarketDataPublisher implementation
+market/
+├── README.md                       # This file
+├── matching_engine.h/.cpp          # Multi-symbol matching engine
+├── trade_engine.h/.cpp             # Position tracking & PnL
+├── order_book.h/.cpp               # Simple limit order book
+├── market_data_engine.h/.cpp       # MD aggregation with throttling
+└── market_data_publisher.h/.cpp    # Callback-based MD publisher
 ```
+
+## Dependencies on Other HFTToolset Modules
+
+| Dependency | Used By | Purpose |
+|------------|---------|---------|
+| `common/types.h` | All | Core types: Order, Trade, Symbol, enums |
+| `common/clock.h` | MatchingEngine, MarketDataEngine | Timestamps |
+| `common/constants.h` | MarketDataEngine | Default L2 depth, queue sizes |
+| `orderbook/l3_order_book.h` | MatchingEngine | Per-symbol order book |
+| `orderbook/l2_aggregator.h` | MatchingEngine | L2 depth snapshots |
+| `orderbook/l1_feed.h` | MatchingEngine | TOB, microprice, VWAP |
+| `risk/risk_engine.h` | MatchingEngine | Pre-trade risk checks |
+| `HPRingBuffer.hpp` | MarketDataEngine | Lock-free MD message queue |
+| `ScopeTimer.hpp` | MatchingEngine | Performance instrumentation |
 ## Usage Examples
 
-### Basic Order Book Usage
+### Matching Engine with L3 Book
 
 ```cpp
-#include "order_book.h"
-#include "types.h"
+#include "common/clock.h"
+#include "common/types.h"
+#include "market/matching_engine.h"
+#include "risk/risk_engine.h"
 #include <iostream>
 
 using namespace HFTToolset;
 
 int main() {
-    // Create an order book for a symbol
-    OrderBook book("AAPL");
-    
-    // Create and add a resting buy order
-    NewOrder buy_order{
-        .id = 1,
-        .trader = 100,
-        .symbol = "AAPL",
-        .side = Side::Buy,
-        .type = OrderType::Limit,
-        .tif = TimeInForce::Day,
-        .price = 150,
-        .qty = 100
-    };
-    
-    BookOrder book_order(buy_order, 1000); // timestamp = 1000
-    book.addOrder(book_order);
-    
-    // Query best bid
-    auto best = book.bestBid();
-    if (best) {
-        std::cout << "Best Bid: " << best->price 
-                  << " x " << best->qty << "\n";
-    }
-    
-    // Match an incoming sell order
-    NewOrder sell_order{
-        .id = 2,
-        .trader = 101,
-        .symbol = "AAPL",
-        .side = Side::Sell,
-        .type = OrderType::Limit,
-        .tif = TimeInForce::Day,
-        .price = 150,
-        .qty = 50
-    };
-    
-    BookOrder incoming(sell_order, 2000);
-    auto [trades, remaining] = book.matchIncoming(incoming, 2000);
-    
-    // Process trades
-    if (trades && !trades->empty()) {
-        for (const auto& trade : *trades) {
-            std::cout << "Trade: " << trade.qty 
-                      << " @ " << trade.price << "\n";
+    Clock clock(Clock::Mode::Simulated);
+    MatchingEngine engine(clock);
+
+    // Optional: attach risk engine
+    RiskEngine risk;
+    risk.setDefaultLimits({.max_position_per_symbol = 10000});
+    engine.set_risk_engine(&risk);
+
+    // Register callbacks
+    engine.on_trade([](const Trade& t) {
+        std::cout << "TRADE: " << t.qty << " @ " << t.price << "\n";
+    });
+
+    engine.on_execution([](const ExecutionReport& rpt) {
+        std::cout << "EXEC: order=" << rpt.order_id
+                  << " status=" << static_cast<int>(rpt.status) << "\n";
+    });
+
+    engine.on_l1_update([](const TopOfBook& tob) {
+        if (tob.valid) {
+            std::cout << "BBO: " << tob.best_bid.price
+                      << " / " << tob.best_ask.price
+                      << " spread=" << tob.spread << "\n";
         }
-    }
-    
-    // Cancel an order
-    bool cancelled = book.cancelOrder(1);
-    
-    return 0;
+    });
+
+    // Register symbols
+    engine.add_symbol("AAPL");
+    engine.add_symbol("GOOGL");
+
+    // Submit a buy order
+    Order buy{};
+    buy.id = 1; buy.trader_id = 100; buy.symbol = Symbol("AAPL");
+    buy.side = Side::Buy; buy.type = OrderType::Limit;
+    buy.tif = TimeInForce::Day; buy.price = 150; buy.quantity = 100;
+    engine.process_new_order(buy);
+
+    // Submit a crossing sell order → triggers trade
+    Order sell{};
+    sell.id = 2; sell.trader_id = 101; sell.symbol = Symbol("AAPL");
+    sell.side = Side::Sell; sell.type = OrderType::Limit;
+    sell.tif = TimeInForce::IOC; sell.price = 150; sell.quantity = 50;
+    engine.process_new_order(sell);
+
+    // Cancel remaining order
+    CancelRequest cancel{};
+    cancel.order_id = 1; cancel.symbol = Symbol("AAPL");
+    engine.process_cancel(cancel);
+
+    // Statistics
+    std::cout << "Orders: " << engine.total_orders_processed()
+              << " Trades: " << engine.total_trades()
+              << " Cancels: " << engine.total_cancels() << "\n";
 }
 ```
 
-### Complete Matching Engine Example
+### Trade Engine with Position Tracking
 
 ```cpp
-#include "matching_engine.h"
-#include "market_data_publisher.h"
-#include "types.h"
+#include "market/trade_engine.h"
 #include <iostream>
 
 using namespace HFTToolset;
 
 int main() {
-    // Create market data publisher with callbacks
-    MarketDataPublisher md_pub;
-    
-    md_pub.onTrade([](const Trade& t) {
-        std::cout << "TRADE: " << t.symbol 
-                  << " " << (t.aggressor_side == Side::Buy ? "BUY" : "SELL")
-                  << " " << t.qty << " @ " << t.price << "\n";
+    TradeEngine trade_engine;
+
+    trade_engine.on_position([](TraderId id, const Position& pos) {
+        std::cout << "Trader " << id << " net=" << pos.net_qty
+                  << " realized_pnl=" << pos.realized_pnl << "\n";
     });
-    
-    md_pub.onTopOfBook([](const TopOfBook& tob) {
-        if (tob.valid) {
-            std::cout << "TOB: " << tob.symbol
-                      << " Bid: " << tob.best_bid.price 
-                      << " x " << tob.best_bid.qty
-                      << " | Ask: " << tob.best_ask.price 
-                      << " x " << tob.best_ask.qty << "\n";
-        }
-    });
-    
-    // Create matching engine
-    MatchingEngine engine(md_pub);
-    
-    // Register trading symbols
-    engine.addSymbol("AAPL");
-    engine.addSymbol("GOOGL");
-    
-    // Submit orders
-    auto ts = std::chrono::steady_clock::now().time_since_epoch().count();
-    
-    NewOrder order1{
-        .id = 1,
-        .trader = 100,
-        .symbol = "AAPL",
-        .side = Side::Buy,
-        .type = OrderType::Limit,
-        .tif = TimeInForce::Day,
-        .price = 150,
-        .qty = 100
-    };
-    engine.handleNewOrder(order1, ts++);
-    
-    NewOrder order2{
-        .id = 2,
-        .trader = 101,
-        .symbol = "AAPL",
-        .side = Side::Sell,
-        .type = OrderType::Limit,
-        .tif = TimeInForce::Day,
-        .price = 151,
-        .qty = 50
-    };
-    engine.handleNewOrder(order2, ts++);
-    
-    // Market order that will match
-    NewOrder market_order{
-        .id = 3,
-        .trader = 102,
-        .symbol = "AAPL",
-        .side = Side::Buy,
-        .type = OrderType::Market,
-        .tif = TimeInForce::IOC,
-        .price = 0, // ignored for market orders
-        .qty = 25
-    };
-    engine.handleNewOrder(market_order, ts++);
-    
-    // Cancel an order
-    CancelOrder cancel{.id = 1};
-    engine.handleCancel(cancel);
-    
-    return 0;
+
+    Trade trade{};
+    trade.incoming_trader = 100; trade.resting_trader = 101;
+    trade.symbol = Symbol("AAPL"); trade.aggressor_side = Side::Buy;
+    trade.price = 150; trade.qty = 50;
+    trade_engine.process_trade(trade);
+
+    // Mark-to-market
+    trade_engine.mark_to_market(Symbol("AAPL"), 155);
+
+    auto* pos = trade_engine.get_position(100, Symbol("AAPL"));
+    if (pos) {
+        std::cout << "Unrealized PnL: " << pos->unrealized_pnl << "\n";
+    }
 }
 ```
 
-### Market Data Callbacks
+### Market Data Engine with Throttling
 
 ```cpp
-#include "market_data_publisher.h"
-#include "types.h"
+#include "market/market_data_engine.h"
 #include <iostream>
-#include <fstream>
 
 using namespace HFTToolset;
 
-// Log all trades to a file
-class TradeLogger {
-public:
-    TradeLogger(const std::string& filename) 
-        : file_(filename, std::ios::app) {}
-    
-    void operator()(const Trade& t) {
-        file_ << t.match_timestamp_ns << ","
-              << t.symbol << ","
-              << t.price << ","
-              << t.qty << ","
-              << (t.aggressor_side == Side::Buy ? "BUY" : "SELL") << "\n";
-    }
-    
-private:
-    std::ofstream file_;
-};
-
-// Track best bid/ask spreads
-class SpreadTracker {
-public:
-    void operator()(const TopOfBook& tob) {
-        if (tob.valid) {
-            auto spread = tob.best_ask.price - tob.best_bid.price;
-            std::cout << tob.symbol << " Spread: " << spread << "\n";
-        }
-    }
-};
-
 int main() {
-    MarketDataPublisher md_pub;
-    
-    // Register multiple callbacks
-    TradeLogger trade_logger("trades.csv");
-    md_pub.onTrade(trade_logger);
-    
-    SpreadTracker spread_tracker;
-    md_pub.onTopOfBook(spread_tracker);
-    
-    md_pub.onDepthSnapshot([](const SymbolId& sym, 
-                               const std::vector<BookLevel>& bids,
-                               const std::vector<BookLevel>& asks) {
-        std::cout << "Depth for " << sym << ":\n";
-        std::cout << "Bids:\n";
-        for (const auto& level : bids) {
-            std::cout << "  " << level.price << " x " << level.qty << "\n";
-        }
-        std::cout << "Asks:\n";
-        for (const auto& level : asks) {
-            std::cout << "  " << level.price << " x " << level.qty << "\n";
-        }
+    Clock clock(Clock::Mode::Simulated);
+    hft_sim::MarketDataEngine md_engine(clock);
+
+    md_engine.set_throttle_interval_ns(1'000'000);  // 1ms throttle
+    md_engine.set_l2_depth(5);
+
+    md_engine.subscribe_l1([](const TopOfBook& tob) {
+        std::cout << "L1 update: mid=" << tob.mid_price << "\n";
     });
-    
-    // ... use with matching engine
-    
-    return 0;
+
+    md_engine.subscribe_trades([](const Trade& t) {
+        std::cout << "Trade: " << t.qty << " @ " << t.price << "\n";
+    });
+
+    // Process queued messages (call from MD publisher thread)
+    md_engine.process_pending();
 }
 ```
 
@@ -400,7 +339,7 @@ int main() {
 
 ### Price-Time Priority
 
-Orders are matched according to **price-time priority**:
+Orders are matched according to **price-time priority** in the L3 order book:
 
 1. **Price Priority**: Better prices match first
    - For bids: Higher prices have priority
@@ -410,303 +349,127 @@ Orders are matched according to **price-time priority**:
    - Orders are stored in a queue (`std::list`) per price level
    - First-in-first-out (FIFO) within each price level
 
-### Matching Algorithm
-
-**For incoming BUY orders:**
-1. Match against asks starting from lowest price
-2. Continue matching while incoming price ≥ ask price
-3. Fill orders in time priority at each price level
-4. Stop when fully filled or no more matches available
-
-**For incoming SELL orders:**
-1. Match against bids starting from highest price
-2. Continue matching while incoming price ≤ bid price
-3. Fill orders in time priority at each price level
-4. Stop when fully filled or no more matches available
-
 ### Order Types
 
-**Limit Orders:**
-- Specify a price and quantity
-- Match at specified price or better
-- Remaining quantity rests on the book
-- Can be cancelled
-
-**Market Orders:**
-- No price specified
-- Match at best available prices
-- Walk the book until filled
-- Any unfilled quantity is rejected (not rested)
+| Type | Behavior |
+|------|----------|
+| **Limit** | Match at specified price or better; remainder rests on the book |
+| **Market** | Match at best available prices; walk the book until filled |
 
 ### Time-in-Force
 
-**Day (DAY):**
-- Order remains active until filled or cancelled
-- Unfilled portions rest on the book
+| TIF | Behavior |
+|-----|----------|
+| **Day** | Remains active until filled or cancelled |
+| **GTC** | Good-til-Cancel; persists across sessions |
+| **IOC** | Execute immediately; cancel any unfilled portion |
+| **FOK** | Fill entire quantity or reject completely |
 
-**Immediate-or-Cancel (IOC):**
-- Execute immediately against available liquidity
-- Cancel any unfilled portion
-- Does not rest on the book
+### Advanced Features
 
-**Fill-or-Kill (FOK):**
-- Must fill completely and immediately
-- If cannot fill entirely, reject the whole order
-- All-or-nothing execution
+- **Iceberg orders** — visible + hidden quantity; auto-replenish on fill
+- **Queue position tracking** — each order knows its position in the price level
+- **Quantity-ahead queries** — total visible quantity ahead of a given order
+- **Cancel-replace** — atomic cancel + new order with price/quantity changes
 
 ## Performance Characteristics
 
 ### Complexity Analysis
 
-**OrderBook Operations:**
-- `addOrder()`: O(log n) - map insertion for price level + O(1) list append
-- `cancelOrder()`: O(1) - unordered_map lookup + O(1) list erase
-- `matchIncoming()`: O(1) best price access + O(k) for k matches
-- `bestBid()`/`bestAsk()`: O(1) - map begin()
-- `bids()`/`asks()`: O(d) where d is requested depth
-
-**MatchingEngine Operations:**
-- `addSymbol()`: O(1) - unordered_map insertion
-- `handleNewOrder()`: O(1) symbol lookup + OrderBook operation
-- `handleCancel()`: O(1) - order index lookup + OrderBook cancel
-
-**Memory Usage:**
-- Order index: O(n) where n = number of active orders
-- Price levels: O(p) where p = number of unique price points
-- Per-price queues: O(n) total across all price levels
-- Symbol index: O(n) for order-to-symbol mapping
+| Operation | Complexity | Component |
+|-----------|------------|-----------|
+| `add_order()` | O(log n) + O(k) matching | L3OrderBook |
+| `cancel_order()` | O(1) | L3OrderBook |
+| `best_bid()`/`best_ask()` | O(1) | L3OrderBook |
+| `bid_depth(d)`/`ask_depth(d)` | O(d) | L3OrderBook |
+| `process_new_order()` | O(1) routing + book op | MatchingEngine |
+| `process_cancel()` | O(1) routing + O(1) cancel | MatchingEngine |
+| `process_trade()` | O(1) | TradeEngine |
+| `on_tob_update()` | O(1) | MarketDataEngine |
 
 ### Performance Optimizations
 
-1. **O(1) Order Cancellation**
-   - `unordered_map<OrderId, OrderLocation>` for instant order lookup
-   - Direct iterator access to order in price queue
-   - No linear scans required
+1. **O(1) Order Cancellation** — `unordered_map<OrderId, OrderLocation>` with direct iterator access
+2. **O(1) Symbol Routing** — `unordered_map` for instant order book / cancel routing
+3. **Lock-free MD Queue** — `HPRingBuffer<MarketDataMessage, 16384>` for cross-thread data
+4. **Cache-line aligned** structures (64 bytes) to prevent false sharing
+5. **Per-symbol throttling** — configurable MD publish rate to prevent flooding
 
-2. **Efficient Price Levels**
-   - `std::map` with custom comparators for sorted price access
-   - Best bid/ask always at `begin()` - O(1) access
-   - Automatic price level cleanup when queue becomes empty
+## Integration with Other HFTToolset Modules
 
-3. **Time Priority**
-   - `std::list` for each price level maintains insertion order
-   - O(1) append for new orders
-   - O(1) removal via iterator
-
-4. **Symbol Routing**
-   - `unordered_map` for O(1) order book lookup by symbol
-   - Separate order-to-symbol index for O(1) cancel routing
-
-### Throughput Characteristics
-
-- **Single-threaded**: Millions of order operations per second
-- **Order submission**: ~100-500ns per order (depending on price level)
-- **Order cancellation**: ~50-100ns per cancel (O(1) lookup)
-- **Order matching**: ~100-200ns per match
-- **Market data callbacks**: Minimal overhead (~10-20ns per callback)
-
-**Factors affecting performance:**
-- Number of price levels in the book
-- Queue length at each price level
-- Frequency of matches vs. resting orders
-- Callback complexity in MarketDataPublisher
-
-## Integration with HFTToolset
-
-These components are designed to work with other HFTToolset utilities:
-
-### With HPRingBuffer
+### With HPRingBuffer (lock-free inter-thread messaging)
 
 ```cpp
-#include "matching_engine.h"
+#include "market/matching_engine.h"
 #include "HPRingBuffer.hpp"
+#include "common/types.h"
 #include <thread>
 
-// Event wrapper for ring buffer
-struct EngineEvent {
-    enum class Type { New, Cancel };
-    Type type;
-    NewOrder new_order;
-    CancelOrder cancel_order;
-    uint64_t ts_ns;
-};
+using namespace HFTToolset;
 
-// Event processing loop
-void processEvents(MatchingEngine& engine, 
-                   HPRingBuffer<EngineEvent, 8192>& events) {
-    EngineEvent event;
-    while (events.pop(event)) {
-        if (event.type == EngineEvent::Type::New) {
-            engine.handleNewOrder(event.new_order, event.ts_ns);
-        } else {
-            engine.handleCancel(event.cancel_order);
+// Producer → consumer via lock-free queue
+HPRingBuffer<EngineEvent, 8192> order_queue;
+HPRingBuffer<EngineEvent, 8192> exec_queue;
+
+// Consumer loop
+void matching_loop(MatchingEngine& engine) {
+    while (auto event = order_queue.pop()) {
+        if (event->type == EventType::NewOrder) {
+            auto rpt = engine.process_new_order(event->order);
+            // Push exec report to output queue
         }
     }
-}
-
-int main() {
-    MarketDataPublisher md_pub;
-    MatchingEngine engine(md_pub);
-    engine.addSymbol("AAPL");
-    
-    HPRingBuffer<EngineEvent, 8192> events;
-    
-    // Producer thread
-    std::thread producer([&events]() {
-        // Push events to ring buffer
-        EngineEvent event{/* ... */};
-        events.push(std::move(event));
-    });
-    
-    // Consumer thread
-    std::thread consumer([&engine, &events]() {
-        processEvents(engine, events);
-    });
-    
-    producer.join();
-    consumer.join();
-    
-    return 0;
 }
 ```
 
-### With ScopeTimer
+### With Telemetry
 
 ```cpp
-#include "matching_engine.h"
-#include "ScopeTimer.hpp"
+#include "market/matching_engine.h"
+#include "metrics/telemetry.h"
 
-void benchmarkMatching() {
-    MarketDataPublisher md_pub;
-    MatchingEngine engine(md_pub);
-    engine.addSymbol("TEST");
-    
-    {
-        ScopeTimer timer("Order Submission");
-        for (int i = 0; i < 100000; ++i) {
-            NewOrder order{/* ... */};
-            engine.handleNewOrder(order, i);
-        }
-    }
-    
-    {
-        ScopeTimer timer("Order Cancellation");
-        for (int i = 0; i < 50000; ++i) {
-            CancelOrder cancel{.id = static_cast<OrderId>(i)};
-            engine.handleCancel(cancel);
-        }
-    }
-}
+engine.on_trade([&telemetry](const Trade& t) {
+    telemetry.record_trade();
+    telemetry.record_fill(t.qty, t.price);
+});
+
+engine.on_execution([&telemetry](const ExecutionReport& rpt) {
+    telemetry.record_order();
+    if (rpt.status == OrderStatus::Rejected) telemetry.record_reject();
+});
 ```
 
 ## Design Considerations
 
 ### Thread Safety
 
-**Current Implementation:**
-- Components are **NOT thread-safe** by design
-- Single-threaded execution within each matching engine
-- Use HPRingBuffer or other synchronization for multi-threaded scenarios
-- Market data callbacks execute on the same thread as order processing
+- Components are **NOT thread-safe** by design (single-threaded hot path)
+- Use `HPRingBuffer` for inter-thread communication
+- `MarketDataEngine` uses an internal lock-free queue for cross-thread MD publishing
 
-**Recommended Threading Model:**
-- One MatchingEngine instance per thread
-- Use lock-free queues (HPRingBuffer) for inter-thread communication
-- Separate symbols across threads if needed for scalability
-- Market data publishing can be delegated to separate thread
+### Recommended Threading Model
 
-### Memory Management
-
-- Uses standard library containers (efficient but not allocation-free)
-- Trade vectors are heap-allocated (consider object pooling for production)
-- No custom allocators (could be added for zero-allocation path)
-- Price levels auto-cleanup when empty (no memory leaks)
-
-### Extensibility
-
-The design allows for easy extensions:
-
-1. **New Order Types**: Add enum values and matching logic
-2. **Advanced TIF**: Extend TimeInForce enum and add handling
-3. **Order Modifies**: Add modify operation to OrderBook
-4. **Iceberg Orders**: Extend BookOrder with hidden quantity
-5. **Stop Orders**: Add trigger price logic to MatchingEngine
-6. **Order Routing**: Add pre-processing before order book submission
-
-## Testing
-
-### Unit Test Example
-
-```cpp
-#include "order_book.h"
-#include <cassert>
-
-void testOrderBook() {
-    OrderBook book("TEST");
-    
-    // Test empty book
-    assert(!book.bestBid().has_value());
-    assert(!book.bestAsk().has_value());
-    
-    // Test order addition
-    NewOrder order{1, 100, "TEST", Side::Buy, 
-                   OrderType::Limit, TimeInForce::Day, 100, 50};
-    book.addOrder(BookOrder(order, 1000));
-    
-    auto best = book.bestBid();
-    assert(best.has_value());
-    assert(best->price == 100);
-    assert(best->qty == 50);
-    
-    // Test matching
-    NewOrder sell{2, 101, "TEST", Side::Sell,
-                  OrderType::Limit, TimeInForce::Day, 100, 25};
-    auto [trades, remaining] = book.matchIncoming(BookOrder(sell, 2000), 2000);
-    
-    assert(trades != nullptr);
-    assert(trades->size() == 1);
-    assert((*trades)[0].qty == 25);
-    assert(remaining == 0);
-    
-    // Test cancellation
-    assert(book.cancelOrder(1));
-    assert(!book.cancelOrder(1)); // Already cancelled
-}
-```
-
-## Limitations and Future Enhancements
-
-### Current Limitations
-
-- No order modification (must cancel and resubmit)
-- No iceberg/hidden order support
-- No stop/stop-limit orders
-- Trades allocated on heap (could use object pool)
-- No persistence/recovery mechanism
-- Market data is synchronous (blocking callbacks)
-
-### Potential Enhancements
-
-- [ ] Order modify operations (price/quantity changes)
-- [ ] Advanced order types (Stop, Stop-Limit, Iceberg, Pegged)
-- [ ] Order book snapshots for recovery
-- [ ] Market-by-order (MBO) vs. market-by-price (MBP) modes
-- [ ] Auction modes (opening/closing auctions)
-- [ ] Circuit breakers and price bands
-- [ ] Order priority schemes (pro-rata, allocation algorithms)
-- [ ] Atomic order combinations (OCO, brackets)
-- [ ] Market data throttling and conflation
-- [ ] Statistics collection (volume, trade count, etc.)
+| Thread | Component | Queue |
+|--------|-----------|-------|
+| T1 | MatchingEngine + L3OrderBook | Reads from Order Queue |
+| T2 | Simulation / FIX Gateway | Writes to Order Queue |
+| T3 | MarketDataEngine | Reads from MD Queue |
+| T4 | Telemetry | Read-only metrics access |
 
 ## License
 
-Part of HFTToolset - MIT License
+Part of HFTToolset — MIT License
 
 Copyright (c) 2025 Omid Ardestani
 
 ## See Also
 
 - [HFTToolset Main Documentation](../../README.md)
-- [HPRingBuffer](../HPRingBuffer.hpp) - Lock-free ring buffer
-- [ScopeTimer](../ScopeTimer.hpp) - Performance measurement
-- [benchmark_p99](../benchmark_p99.hpp) - Latency benchmarking
+- [L3 Order Book](../orderbook/l3_order_book.h) — Full order-level book
+- [L2 Aggregator](../orderbook/l2_aggregator.h) — Depth snapshot aggregation
+- [L1 Feed](../orderbook/l1_feed.h) — Top-of-book statistics
+- [Risk Engine](../risk/risk_engine.h) — Pre-trade risk checks
+- [Latency Model](../latency/latency_model.h) — Latency simulation
+- [Telemetry](../metrics/telemetry.h) — Metrics & dashboard
+- [HPRingBuffer](../HPRingBuffer.hpp) — Lock-free ring buffer
+- [ScopeTimer](../ScopeTimer.hpp) — Performance measurement

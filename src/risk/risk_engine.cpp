@@ -1,5 +1,5 @@
 // ============================================================================
-// HFT Exchange Simulator — Risk Engine Implementation
+// HFTToolset — Risk Engine Implementation
 // ============================================================================
 
 #include "risk_engine.h"

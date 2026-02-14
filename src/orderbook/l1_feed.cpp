@@ -1,5 +1,5 @@
 // ============================================================================
-// HFT Exchange Simulator — L1 Feed Implementation
+// HFTToolset — L1 Feed Implementation
 // ============================================================================
 
 #include "l1_feed.h"

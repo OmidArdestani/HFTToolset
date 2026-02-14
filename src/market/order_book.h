@@ -1,4 +1,9 @@
 #pragma once
+// ============================================================================
+// HFTToolset — Limit Order Book (Simple)
+// Price-time priority order book with O(1) cancel via order-index.
+// Used as a lightweight alternative to L3OrderBook for basic simulations.
+// ============================================================================
 
 #include "types.h"
 #include <map>

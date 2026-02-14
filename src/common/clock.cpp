@@ -1,5 +1,5 @@
 // ============================================================================
-// HFT Exchange Simulator — Clock Implementation
+// HFTToolset — Clock Implementation
 // ============================================================================
 
 #include "clock.h"
@@ -44,4 +44,4 @@ Timestamp Clock::wall_clock_now() {
             tp.time_since_epoch()).count());
 }
 
-} // namespace hft_sim
+} // namespace HFTToolset

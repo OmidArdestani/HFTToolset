@@ -1,4 +1,9 @@
 #pragma once
+// ============================================================================
+// HFTToolset — Market Data Publisher (Callback-based)
+// Lightweight event-driven publisher for top-of-book, trade, and
+// depth-snapshot callbacks. Decoupled from matching engine internals.
+// ============================================================================
 
 #include "types.h"
 #include <vector>
